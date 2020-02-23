@@ -22,8 +22,9 @@ Note: on Windows, it requires to install Perl, for example using [Strawberry Per
 Note that it is a pretty bold and experimental package and is not well suited to production!!
 
 Current problems:
-  - Can generate a compilation error "unused variable" if a variable declared outside a snippet is only used in a snippet.
-  - The code generator is currently not able to detect comments, strings e.g. `/* prepexpr.Foo "prepexpr.Foo" */`
-  - ```(.*)``` may eat several prepexpr.Foo() expressions, so you cannot have several of them on the same line of code,
-    and not nest them.
+  - The code generator is currently not able to detect comments or strings e.g. `/* prepexpr.Foo "prepexpr.Foo" */`
+  - A prepexpr.Foo(...) statement must completely fit into a line of code.
+  - You cannot nest prepexpr.Foo(...) statements.
+  - You should now be able to have several prepexpr.Foo(...) statements in the same line of code, but this is not fully tested.
+  - Issue with commas, e.g. not working: prepexpr.Ternary(true, []string{"my","list"}, []string{}).([]string)
   - Many other problems

@@ -4,7 +4,7 @@ func IgnoreUnused(args ...interface{}) {
 	panic("ERROR: prepexpr not run yet, please use the prepexpr tool")
 }
 
-func Eval(codeSnippet string) interface{} {
+func Eval(codeSnippet string, codeSnippetRet string) interface{} {
 	panic("ERROR: prepexpr not run yet, please use the prepexpr tool")
 }
 

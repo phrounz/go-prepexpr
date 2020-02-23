@@ -5,7 +5,7 @@ use warnings;
 
 sub unstringify($) {
   my $code_snippet = shift;
-  unless ($code_snippet =~ s/\"(.*)\"/$1/) {
+  unless ($code_snippet =~ s/^\s*\"(.*)\"\s*$/$1/) {
     die "Code snippet $code_snippet should start and end with \"";
   }
   $code_snippet =~ s/\\\"/\"/g;
@@ -26,17 +26,20 @@ sub processFile($$) {
     return "import \"$package\"";
   };
 
-  my $fn_eval = sub ($$) {
-    my ($code_snippet, $type) = @_;
-    $code_snippet = unstringify($code_snippet);
-    $code_snippet =~ s/^(.*)\;([^;]+)$/$1 ; return $2/;
-    return "func() $type { $code_snippet } ()"
+  my $fn_eval = sub ($$$) {
+    my ($code_snippet1, $code_snippet2, $type) = @_;
+    $code_snippet1 = unstringify($code_snippet1);
+    $code_snippet2 = unstringify($code_snippet2);
+    my $separator = (($code_snippet1 ne "") && ($code_snippet2 ne "") ? " ; " : "");
+    return "func() $type { $code_snippet1 $separator return $code_snippet2 } ()";
   };
 
   my $fn_ternary = sub ($$$$) {
     my ($condition, $thruthy, $falsey, $type) = @_;
     return "func() $type {
-      if $condition { return $thruthy }
+      if $condition {
+        return $thruthy
+      }
       return $falsey } () ";
   };
 
@@ -53,7 +56,9 @@ sub processFile($$) {
     my ($input, $code_snippet, $type) = retrieve3Args(@_);
     return "func() (out []$type) {
       out = make([]$type, 0, len($input))
-      for _, i := range $input { out = append(out, $code_snippet) }
+      for _, i := range $input {
+        out = append(out, $code_snippet)
+      }
       return out } ()";
   };
 
@@ -61,7 +66,11 @@ sub processFile($$) {
     my ($input, $code_snippet, $type) = retrieve3Args(@_);
     return "func() (out []$type) {
       out = make([]$type, 0)
-      for _, i := range $input { if $code_snippet { out = append(out, i) } }
+      for _, i := range $input {
+        if $code_snippet {
+          out = append(out, i)
+        }
+      }
       return out } ()";
   };
 
@@ -78,7 +87,9 @@ sub processFile($$) {
     my ($input, $type) = @_;
     return "func() (out []$type) {
       out = make([]$type, 0, len($input))
-      for k, _ := range $input { out = append(out, k) }
+      for k, _ := range $input {
+        out = append(out, k)
+      }
       return out } ()";
   };
 
@@ -86,7 +97,9 @@ sub processFile($$) {
     my ($input, $type) = @_;
     return "func() (out []$type) {
       out = make([]$type, 0, len($input))
-      for _, v := range $input { out = append(out, v) }
+      for _, v := range $input {
+        out = append(out, v)
+      }
       return out } ()";
   };
 
@@ -96,15 +109,15 @@ sub processFile($$) {
     $_ =~ s/^\/\/\s*prepexpr\:import\:(.*)$/$fn_import->($1)/eg;
     $_ =~ s/^\s*\".\/prepexpr\"[\s\n]*$//g;
     $_ =~ s/prepexpr\.IgnoreUnused\([a-zA-Z0-9\_\, ]+\)//g;
-    $_ =~ s/prepexpr\.Eval\((.*)\)\.\(([^\)]+)\)/$fn_eval->($1, $2)/eg;
-    #$_ =~ s/prepexpr\.EvalWith\((.*),[a-zA-Z0-9\_\, ]+\)\.\(([^\)]+)\)/$fn_eval->($1, $2)/eg;
-    $_ =~ s/prepexpr\.Ternary\((.*),(.*),(.*)\)\.\(([^\)]+)\)/$fn_ternary->($1,$2,$3,$4)/eg;
-    $_ =~ s/prepexpr\.CloneSlice\(([^\)]*)\)\.\(\[\]([^\)]+)\)/$fn_clone->($1,$2)/eg;
-    $_ =~ s/prepexpr\.MapSlice\((.*),(.*)\)\.\(\[\]([^\)]+)\)/$fn_map->($1,$2,$3)/eg;
-    $_ =~ s/prepexpr\.FilterSlice\((.*),(.*)\)\.\(\[\]([^\)]+)\)/$fn_filter->($1,$2,$3)/eg;
-    $_ =~ s/prepexpr\.SortSlice\((.*),(.*)\)\.\(\[\]([^\)]+)\)/$fn_sort->($1,$2,$3)/eg;
-    $_ =~ s/prepexpr\.Keys\((.*)\)\.\(\[\]([^\)]+)\)/$fn_keys->($1,$2)/eg;
-    $_ =~ s/prepexpr\.Values\((.*)\)\.\(\[\]([^\)]+)\)/$fn_values->($1,$2)/eg;
+    $_ =~ s/prepexpr\.Eval\((\".*\")\s*,\s*(\".*?\")\s*\)\.\(([^\)]+)\)/$fn_eval->($1, $2, $3)/eg;
+    #$_ =~ s/prepexpr\.EvalWith\((.*?),[a-zA-Z0-9\_\, ]+\)\.\(([^\)]+)\)/$fn_eval->($1, $2)/eg;
+    $_ =~ s/prepexpr\.Ternary\((.*?)\s*,\s*(.*?)\s*,\s*(.*?)\s*\)\.\(([^\)]+)\)/$fn_ternary->($1,$2,$3,$4)/eg;
+    $_ =~ s/prepexpr\.CloneSlice\((\w+)\)\.\(\[\]([^\)]+)\)/$fn_clone->($1,$2)/eg;
+    $_ =~ s/prepexpr\.MapSlice\((\w+)\s*,\s*(\".*?\")\)\.\(\[\]([^\)]+)\)/$fn_map->($1,$2,$3)/eg;
+    $_ =~ s/prepexpr\.FilterSlice\((\w+)\s*,\s*(\".*?\")\)\.\(\[\]([^\)]+)\)/$fn_filter->($1,$2,$3)/eg;
+    $_ =~ s/prepexpr\.SortSlice\((\w+)\s*,\s*(\".*?\")\)\.\(\[\]([^\)]+)\)/$fn_sort->($1,$2,$3)/eg;
+    $_ =~ s/prepexpr\.Keys\((\w+)\)\.\(\[\]([^\)]+)\)/$fn_keys->($1,$2)/eg;
+    $_ =~ s/prepexpr\.Values\((\w+)\)\.\(\[\]([^\)]+)\)/$fn_values->($1,$2)/eg;
     print FDW $_;
   }
   close FDR;
